@@ -10,7 +10,7 @@ from sklearn.metrics import (
     accuracy_score
 )
 
-from model_selector import (
+from models.model_selector import (
     select_best_model
 )
 
@@ -23,6 +23,10 @@ def train_model(
     df,
     target_column
 ):
+
+    print(
+        "\nTRAINING INDUSTRIAL AI MODEL...\n"
+    )
 
     # ======================================
     # FEATURES + TARGET
@@ -38,19 +42,36 @@ def train_model(
     # DETECT PROBLEM TYPE
     # ======================================
 
-    if y.dtype == "object":
+    if (
 
-        problem_type = "classification"
+        str(y.dtype) == "object"
+
+        or
+
+        y.nunique() <= 10
+    ):
+
+        problem_type = (
+            "classification"
+        )
 
     else:
 
-        problem_type = "regression"
+        problem_type = (
+            "regression"
+        )
+
+    print(
+        f"Detected Problem Type: "
+        f"{problem_type}"
+    )
 
     # ======================================
     # TRAIN TEST SPLIT
     # ======================================
 
     X_train, X_test, y_train, y_test = (
+
         train_test_split(
 
             X,
@@ -66,7 +87,11 @@ def train_model(
     # AUTO MODEL SELECTION
     # ======================================
 
-    model = select_best_model(
+    (
+        model,
+        best_model_name
+
+    ) = select_best_model(
 
         X_train,
         X_test,
@@ -86,7 +111,7 @@ def train_model(
     )
 
     # ======================================
-    # METRICS
+    # REGRESSION METRICS
     # ======================================
 
     if problem_type == "regression":
@@ -106,12 +131,23 @@ def train_model(
         )
 
         print(
-            f"\nForecast Error (MAE): {mae:.2f}"
+            f"\nBest Model: "
+            f"{best_model_name}"
         )
 
         print(
-            f"R2 Score: {r2:.4f}"
+            f"Forecast Error (MAE): "
+            f"{mae:.2f}"
         )
+
+        print(
+            f"R² Score: "
+            f"{r2:.4f}"
+        )
+
+    # ======================================
+    # CLASSIFICATION METRICS
+    # ======================================
 
     else:
 
@@ -123,9 +159,18 @@ def train_model(
         )
 
         print(
-            f"\nClassification Accuracy: "
+            f"\nBest Model: "
+            f"{best_model_name}"
+        )
+
+        print(
+            f"Classification Accuracy: "
             f"{accuracy:.4f}"
         )
+
+    print(
+        "\nMODEL TRAINING COMPLETED!\n"
+    )
 
     return (
 
@@ -135,5 +180,7 @@ def train_model(
 
         predictions,
 
-        problem_type
+        problem_type,
+
+        best_model_name
     )

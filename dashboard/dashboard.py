@@ -2,13 +2,17 @@ import sys
 import os
 
 # ==========================================
-# PROJECT ROOT PATH FIX
+# PROJECT ROOT PATH
 # ==========================================
 
 sys.path.append(
+
     os.path.abspath(
+
         os.path.join(
+
             os.path.dirname(__file__),
+
             ".."
         )
     )
@@ -22,13 +26,48 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-from preprocessing.detect_schema import detect_schema
-from preprocessing.clean_data import clean_data
-from preprocessing.outlier_handler import remove_outliers
-from preprocessing.feature_builder import build_features
-from preprocessing.encode_features import encode_features
+from sklearn.metrics import (
 
-from models.train_model import train_model
+    mean_absolute_error,
+    r2_score,
+    accuracy_score
+)
+
+# ==========================================
+# PREPROCESSING
+# ==========================================
+
+from preprocessing.detect_schema import (
+    detect_schema
+)
+
+from preprocessing.clean_data import (
+    clean_data
+)
+
+from preprocessing.outlier_handler import (
+    remove_outliers
+)
+
+from preprocessing.feature_builder import (
+    build_features
+)
+
+from preprocessing.encode_features import (
+    encode_features
+)
+
+# ==========================================
+# MODEL TRAINING
+# ==========================================
+
+from models.train_model import (
+    train_model
+)
+
+# ==========================================
+# VISUALIZATIONS
+# ==========================================
 
 from visualizations import (
 
@@ -36,18 +75,14 @@ from visualizations import (
     create_scatter,
     create_boxplot,
 
-    create_correlation_heatmap,
+    create_pie_chart,
 
     create_feature_importance,
-
-    create_pie_chart,
-    create_line_chart,
-
-    create_multi_feature_dashboard,
 
     create_actual_vs_predicted_chart,
 
     create_classification_comparison_chart,
+
     create_confusion_matrix_chart
 )
 
@@ -57,7 +92,8 @@ from visualizations import (
 
 st.set_page_config(
 
-    page_title="Industrial AI System",
+    page_title=
+        "Industrial AI System",
 
     page_icon="🏭",
 
@@ -74,17 +110,63 @@ st.title(
 
 st.markdown("""
 
-Industrial AI platform for:
+### AI-Based Industrial Analytics Platform
+
+This platform supports:
 
 - Demand Forecasting
 - Cost Prediction
 - Procurement Intelligence
 - Safety Risk Analysis
+- Industrial Decision Analytics
 
 """)
 
 # ==========================================
-# CACHE PREPROCESSING
+# CACHE DATA LOADING
+# ==========================================
+
+@st.cache_data
+
+def load_datasets(uploaded_files):
+
+    dataframes = []
+
+    for uploaded_file in uploaded_files:
+
+        # ----------------------------------
+        # CSV
+        # ----------------------------------
+
+        if uploaded_file.name.endswith(".csv"):
+
+            temp_df = pd.read_csv(
+                uploaded_file
+            )
+
+        # ----------------------------------
+        # EXCEL
+        # ----------------------------------
+
+        else:
+
+            temp_df = pd.read_excel(
+                uploaded_file
+            )
+
+        dataframes.append(temp_df)
+
+    merged_df = pd.concat(
+
+        dataframes,
+
+        ignore_index=True
+    )
+
+    return merged_df
+
+# ==========================================
+# PREPROCESSING PIPELINE
 # ==========================================
 
 @st.cache_data
@@ -123,51 +205,29 @@ uploaded_files = st.file_uploader(
 if uploaded_files:
 
     # ======================================
-    # LOAD DATASETS
+    # LOAD DATA
     # ======================================
 
-    dataframes = []
-
-    for uploaded_file in uploaded_files:
-
-        if uploaded_file.name.endswith(".csv"):
-
-            temp_df = pd.read_csv(
-                uploaded_file
-            )
-
-        else:
-
-            temp_df = pd.read_excel(
-                uploaded_file
-            )
-
-        dataframes.append(temp_df)
-
-    # ======================================
-    # MERGE DATASETS
-    # ======================================
-
-    df = pd.concat(
-
-        dataframes,
-
-        ignore_index=True
+    df = load_datasets(
+        uploaded_files
     )
 
     original_df = df.copy()
 
     # ======================================
-    # SAMPLE LARGE DATASETS
+    # LIGHTWEIGHT VISUALIZATION DATA
     # ======================================
 
     if len(original_df) > 1000:
 
-        visualization_df = original_df.sample(
+        visualization_df = (
 
-            1000,
+            original_df.sample(
 
-            random_state=42
+                1000,
+
+                random_state=42
+            )
         )
 
     else:
@@ -179,23 +239,24 @@ if uploaded_files:
     # ======================================
 
     st.success(
-        f"{len(uploaded_files)} dataset(s) uploaded successfully!"
+        f"{len(uploaded_files)} "
+        f"dataset(s) uploaded successfully!"
     )
 
-    col1, col2, col3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
-    col1.metric(
+    c1.metric(
         "Rows",
         original_df.shape[0]
     )
 
-    col2.metric(
+    c2.metric(
         "Columns",
         original_df.shape[1]
     )
 
-    col3.metric(
-        "Files",
+    c3.metric(
+        "Files Uploaded",
         len(uploaded_files)
     )
 
@@ -221,15 +282,19 @@ if uploaded_files:
     with tab1:
 
         st.subheader(
-            "Merged Dataset"
+            "Merged Industrial Dataset"
         )
 
         st.dataframe(
-            original_df.head(20)
+
+            original_df.head(10),
+
+            use_container_width=True
         )
 
         st.write(
-            original_df.shape
+            f"Dataset Shape: "
+            f"{original_df.shape}"
         )
 
     # ======================================
@@ -243,8 +308,13 @@ if uploaded_files:
         ):
 
             processed_df, schema = (
+
                 preprocess_pipeline(df)
             )
+
+            st.session_state[
+                "processed_df"
+            ] = processed_df
 
         st.success(
             "Preprocessing Completed!"
@@ -261,7 +331,10 @@ if uploaded_files:
         )
 
         st.dataframe(
-            processed_df.head(20)
+
+            processed_df.head(10),
+
+            use_container_width=True
         )
 
     # ======================================
@@ -270,184 +343,320 @@ if uploaded_files:
 
     with tab3:
 
-        st.subheader(
-            "Industrial AI Model"
-        )
-
-        target_column = st.selectbox(
-
-            "Select Target Column",
-
-            processed_df.columns
-        )
-
-        # ==================================
-        # TRAIN MODEL
-        # ==================================
-
-        if st.button(
-            "Train AI Model"
+        if (
+            "processed_df"
+            not in st.session_state
         ):
 
-            with st.spinner(
-                "Training AI model..."
+            st.warning(
+                "Please preprocess "
+                "the dataset first."
+            )
+
+        else:
+
+            st.subheader(
+                "Industrial AI Model"
+            )
+
+            target_column = st.selectbox(
+
+                "Select Target Column",
+
+                st.session_state[
+                    "processed_df"
+                ].columns
+            )
+
+            # ==================================
+            # TRAINING SAMPLE
+            # ==================================
+
+            training_df = (
+
+                st.session_state[
+                    "processed_df"
+                ]
+
+                .sample(
+
+                    min(
+
+                        2000,
+
+                        len(
+                            st.session_state[
+                                "processed_df"
+                            ]
+                        )
+                    ),
+
+                    random_state=42
+                )
+            )
+
+            # ==================================
+            # TRAIN BUTTON
+            # ==================================
+
+            if st.button(
+                "Train AI Model"
             ):
 
-                (
-                    model,
-                    y_test,
-                    predictions,
-                    problem_type
+                with st.spinner(
+                    "Training Industrial AI Models..."
+                ):
 
-                ) = train_model(
+                    (
+                        model,
+                        y_test,
+                        predictions,
+                        problem_type,
+                        best_model_name
 
-                    processed_df,
-                    target_column
-                )
+                    ) = train_model(
 
-            st.success(
-                "Model Trained Successfully!"
-            )
+                        training_df,
 
-            # ==================================
-            # PREDICTION DATASET
-            # ==================================
-
-            prediction_df = pd.DataFrame({
-
-                "Actual":
-                    y_test.values,
-
-                "Predicted":
-                    predictions
-            })
-
-            # ==================================
-            # REGRESSION
-            # ==================================
-
-            if problem_type == "regression":
-
-                mae = np.mean(
-                    abs(
-                        y_test - predictions
+                        target_column
                     )
+
+                st.success(
+                    "Model Training Completed!"
                 )
 
-                c1, c2, c3 = st.columns(3)
-
-                c1.metric(
-                    "Average Actual",
-                    f"{np.mean(y_test):.2f}"
+                st.info(
+                    f"Best Selected Model: "
+                    f"{best_model_name}"
                 )
 
-                c2.metric(
-                    "Average Forecast",
-                    f"{np.mean(predictions):.2f}"
-                )
+                # ==============================
+                # PREDICTION DATAFRAME
+                # ==============================
 
-                c3.metric(
-                    "Forecast Error",
-                    f"{mae:.2f}"
-                )
+                prediction_df = pd.DataFrame({
 
-                forecast_chart = (
-                    create_actual_vs_predicted_chart(
+                    "Actual":
+                        y_test.values,
+
+                    "Predicted":
+                        predictions
+                })
+
+                # ==============================
+                # REGRESSION
+                # ==============================
+
+                if problem_type == "regression":
+
+                    mae = mean_absolute_error(
 
                         y_test,
 
                         predictions
                     )
-                )
 
-                st.plotly_chart(
-
-                    forecast_chart,
-
-                    use_container_width=True
-                )
-
-            # ==================================
-            # CLASSIFICATION
-            # ==================================
-
-            else:
-
-                classification_chart = (
-
-                    create_classification_comparison_chart(
+                    r2 = r2_score(
 
                         y_test,
 
                         predictions
                     )
-                )
 
-                st.plotly_chart(
+                    # ==========================
+                    # KPI CARDS
+                    # ==========================
 
-                    classification_chart,
+                    k1, k2, k3, k4 = (
+                        st.columns(4)
+                    )
 
-                    use_container_width=True
-                )
+                    k1.metric(
 
-                confusion_chart = (
-                    create_confusion_matrix_chart(
+                        "Average Actual",
+
+                        f"{np.mean(y_test):.2f}"
+                    )
+
+                    k2.metric(
+
+                        "Average Forecast",
+
+                        f"{np.mean(predictions):.2f}"
+                    )
+
+                    k3.metric(
+
+                        "Forecast Error",
+
+                        f"{mae:.2f}"
+                    )
+
+                    k4.metric(
+
+                        "R² Score",
+
+                        f"{r2:.4f}"
+                    )
+
+                    # ==========================
+                    # FORECAST CHART
+                    # ==========================
+
+                    st.subheader(
+                        "Forecast Comparison"
+                    )
+
+                    forecast_chart = (
+
+                        create_actual_vs_predicted_chart(
+
+                            y_test,
+
+                            predictions
+                        )
+                    )
+
+                    st.plotly_chart(
+
+                        forecast_chart,
+
+                        use_container_width=True
+                    )
+
+                # ==============================
+                # CLASSIFICATION
+                # ==============================
+
+                else:
+
+                    accuracy = accuracy_score(
 
                         y_test,
 
                         predictions
                     )
+
+                    st.metric(
+
+                        "Classification Accuracy",
+
+                        f"{accuracy:.4f}"
+                    )
+
+                    st.subheader(
+                        "Classification Analysis"
+                    )
+
+                    classification_chart = (
+
+                        create_classification_comparison_chart(
+
+                            y_test,
+
+                            predictions
+                        )
+                    )
+
+                    st.plotly_chart(
+
+                        classification_chart,
+
+                        use_container_width=True
+                    )
+
+                    st.subheader(
+                        "Confusion Matrix"
+                    )
+
+                    confusion_chart = (
+
+                        create_confusion_matrix_chart(
+
+                            y_test,
+
+                            predictions
+                        )
+                    )
+
+                    st.plotly_chart(
+
+                        confusion_chart,
+
+                        use_container_width=True
+                    )
+
+                # ==============================
+                # FEATURE IMPORTANCE
+                # ==============================
+
+                st.subheader(
+                    "Feature Importance"
                 )
 
-                st.plotly_chart(
+                feature_chart = (
 
-                    confusion_chart,
+                    create_feature_importance(
+
+                        model,
+
+                        training_df
+                        .drop(
+                            columns=[target_column]
+                        )
+                        .columns
+                    )
+                )
+
+                if feature_chart:
+
+                    st.plotly_chart(
+
+                        feature_chart,
+
+                        use_container_width=True
+                    )
+
+                # ==============================
+                # RESULTS TABLE
+                # ==============================
+
+                st.subheader(
+                    "Prediction Results"
+                )
+
+                st.dataframe(
+
+                    prediction_df.head(20),
 
                     use_container_width=True
                 )
 
-            # ==================================
-            # FEATURE IMPORTANCE
-            # ==================================
+                # ==============================
+                # DOWNLOAD BUTTON
+                # ==============================
 
-            feature_chart = (
-                create_feature_importance(
+                prediction_csv = (
 
-                    model,
+                    prediction_df
 
-                    processed_df.drop(
-                        columns=[target_column]
-                    ).columns
-                )
-            )
+                    .to_csv(index=False)
 
-            if feature_chart:
-
-                st.plotly_chart(
-
-                    feature_chart,
-
-                    use_container_width=True
+                    .encode("utf-8")
                 )
 
-            # ==================================
-            # DOWNLOAD PREDICTIONS
-            # ==================================
+                st.download_button(
 
-            prediction_csv = prediction_df.to_csv(
-                index=False
-            ).encode("utf-8")
+                    label=
+                        "Download Predicted Dataset",
 
-            st.download_button(
+                    data=prediction_csv,
 
-                label="Download Predicted Dataset",
+                    file_name=
+                        "predicted_results.csv",
 
-                data=prediction_csv,
-
-                file_name="predicted_results.csv",
-
-                mime="text/csv"
-            )
+                    mime="text/csv"
+                )
 
     # ======================================
     # TAB 4 — ANALYTICS
@@ -461,9 +670,19 @@ if uploaded_files:
 
         numeric_columns = (
 
-            visualization_df.select_dtypes(
-                include=['int64', 'float64']
-            ).columns.tolist()
+            visualization_df
+
+            .select_dtypes(
+
+                include=[
+                    'int64',
+                    'float64'
+                ]
+            )
+
+            .columns
+
+            .tolist()
         )
 
         # ==================================
@@ -497,9 +716,15 @@ if uploaded_files:
 
         categorical_columns = (
 
-            visualization_df.select_dtypes(
+            visualization_df
+
+            .select_dtypes(
                 include=['object']
-            ).columns.tolist()
+            )
+
+            .columns
+
+            .tolist()
         )
 
         if categorical_columns:
@@ -526,33 +751,6 @@ if uploaded_files:
             )
 
         # ==================================
-        # LINE CHART
-        # ==================================
-
-        line_column = st.selectbox(
-
-            "Trend Analysis",
-
-            numeric_columns,
-
-            key="line"
-        )
-
-        line_chart = create_line_chart(
-
-            visualization_df,
-
-            line_column
-        )
-
-        st.plotly_chart(
-
-            line_chart,
-
-            use_container_width=True
-        )
-
-        # ==================================
         # SCATTER PLOT
         # ==================================
 
@@ -576,9 +774,24 @@ if uploaded_files:
                 key="y"
             )
 
+            scatter_df = (
+
+                visualization_df.sample(
+
+                    min(
+                        300,
+                        len(
+                            visualization_df
+                        )
+                    ),
+
+                    random_state=42
+                )
+            )
+
             scatter = create_scatter(
 
-                visualization_df,
+                scatter_df,
 
                 x_col,
 
@@ -619,69 +832,28 @@ if uploaded_files:
             use_container_width=True
         )
 
-        # ==================================
-        # HEAVY VISUALS
-        # ==================================
-
-        st.subheader(
-            "Advanced Analytics"
-        )
-
-        # ----------------------------------
-
-        if st.button(
-            "Generate Multi-Feature Dashboard"
-        ):
-
-            multi_dashboard = (
-                create_multi_feature_dashboard(
-                    visualization_df
-                )
-            )
-
-            if multi_dashboard:
-
-                st.plotly_chart(
-
-                    multi_dashboard,
-
-                    use_container_width=True
-                )
-
-        # ----------------------------------
-
-        if st.button(
-            "Generate Correlation Heatmap"
-        ):
-
-            heatmap = (
-                create_correlation_heatmap(
-                    visualization_df
-                )
-            )
-
-            st.plotly_chart(
-
-                heatmap,
-
-                use_container_width=True
-            )
-
     # ======================================
     # DOWNLOAD ORIGINAL DATASET
     # ======================================
 
-    csv = original_df.to_csv(
-        index=False
-    ).encode("utf-8")
+    csv = (
+
+        original_df
+
+        .to_csv(index=False)
+
+        .encode("utf-8")
+    )
 
     st.download_button(
 
-        label="Download Original Dataset",
+        label=
+            "Download Original Dataset",
 
         data=csv,
 
-        file_name="industrial_dataset.csv",
+        file_name=
+            "industrial_dataset.csv",
 
         mime="text/csv"
     )

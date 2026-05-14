@@ -1,13 +1,10 @@
 from sklearn.ensemble import (
 
-    RandomForestRegressor,
-    RandomForestClassifier,
-
-    GradientBoostingRegressor,
-    GradientBoostingClassifier,
-
     ExtraTreesRegressor,
-    ExtraTreesClassifier
+    ExtraTreesClassifier,
+
+    RandomForestRegressor,
+    RandomForestClassifier
 )
 
 from sklearn.metrics import (
@@ -17,59 +14,48 @@ from sklearn.metrics import (
 )
 
 # ==========================================
-# INDUSTRIAL MODEL SELECTOR
+# FAST INDUSTRIAL MODEL SELECTOR
 # ==========================================
 
 def select_best_model(
 
     X_train,
     X_test,
+
     y_train,
     y_test,
+
     problem_type
 ):
 
     # ======================================
-    # REGRESSION MODELS
+    # REGRESSION
     # ======================================
 
     if problem_type == "regression":
 
         models = {
 
-            "Random Forest":
+            "Extra Trees":
 
-                RandomForestRegressor(
+                ExtraTreesRegressor(
 
-                    n_estimators=300,
+                    n_estimators=80,
 
-                    max_depth=20,
+                    max_depth=10,
 
                     random_state=42,
 
                     n_jobs=-1
                 ),
 
-            "Gradient Boosting":
+            "Random Forest":
 
-                GradientBoostingRegressor(
+                RandomForestRegressor(
 
-                    n_estimators=300,
+                    n_estimators=60,
 
-                    learning_rate=0.05,
-
-                    max_depth=6,
-
-                    random_state=42
-                ),
-
-            "Extra Trees":
-
-                ExtraTreesRegressor(
-
-                    n_estimators=300,
-
-                    max_depth=20,
+                    max_depth=10,
 
                     random_state=42,
 
@@ -79,13 +65,17 @@ def select_best_model(
 
         best_model = None
         best_error = float("inf")
-        best_name = None
+        best_model_name = None
 
         # ==================================
-        # TRAIN ALL MODELS
+        # TRAIN MODELS
         # ==================================
 
         for name, model in models.items():
+
+            print(
+                f"\nTraining {name}..."
+            )
 
             model.fit(
                 X_train,
@@ -104,11 +94,12 @@ def select_best_model(
             )
 
             print(
-                f"{name} MAE: {mae:.2f}"
+                f"{name} MAE: "
+                f"{mae:.2f}"
             )
 
             # ------------------------------
-            # BEST MODEL SELECTION
+            # BEST MODEL
             # ------------------------------
 
             if mae < best_error:
@@ -117,57 +108,52 @@ def select_best_model(
 
                 best_model = model
 
-                best_name = name
+                best_model_name = name
 
         print(
-            f"\nBEST MODEL: {best_name}"
+            f"\nBEST MODEL: "
+            f"{best_model_name}"
         )
 
         print(
-            f"LOWEST FORECAST ERROR: {best_error:.2f}"
+            f"LOWEST FORECAST ERROR: "
+            f"{best_error:.2f}"
         )
 
-        return best_model
+        return (
+
+            best_model,
+            best_model_name
+        )
 
     # ======================================
-    # CLASSIFICATION MODELS
+    # CLASSIFICATION
     # ======================================
 
     else:
 
         models = {
 
-            "Random Forest":
+            "Extra Trees":
 
-                RandomForestClassifier(
+                ExtraTreesClassifier(
 
-                    n_estimators=300,
+                    n_estimators=80,
 
-                    max_depth=20,
+                    max_depth=10,
 
                     random_state=42,
 
                     n_jobs=-1
                 ),
 
-            "Gradient Boosting":
+            "Random Forest":
 
-                GradientBoostingClassifier(
+                RandomForestClassifier(
 
-                    n_estimators=300,
+                    n_estimators=60,
 
-                    learning_rate=0.05,
-
-                    random_state=42
-                ),
-
-            "Extra Trees":
-
-                ExtraTreesClassifier(
-
-                    n_estimators=300,
-
-                    max_depth=20,
+                    max_depth=10,
 
                     random_state=42,
 
@@ -177,13 +163,17 @@ def select_best_model(
 
         best_model = None
         best_accuracy = 0
-        best_name = None
+        best_model_name = None
 
         # ==================================
-        # TRAIN ALL MODELS
+        # TRAIN MODELS
         # ==================================
 
         for name, model in models.items():
+
+            print(
+                f"\nTraining {name}..."
+            )
 
             model.fit(
                 X_train,
@@ -202,11 +192,12 @@ def select_best_model(
             )
 
             print(
-                f"{name} Accuracy: {accuracy:.4f}"
+                f"{name} Accuracy: "
+                f"{accuracy:.4f}"
             )
 
             # ------------------------------
-            # BEST MODEL SELECTION
+            # BEST MODEL
             # ------------------------------
 
             if accuracy > best_accuracy:
@@ -215,14 +206,15 @@ def select_best_model(
 
                 best_model = model
 
-                best_name = name
+                best_model_name = name
 
         print(
-            f"\nBEST MODEL: {best_name}"
+            f"\nBEST MODEL: "
+            f"{best_model_name}"
         )
 
-        print(
-            f"HIGHEST ACCURACY: {best_accuracy:.4f}"
-        )
+        return (
 
-        return best_model
+            best_model,
+            best_model_name
+        )
