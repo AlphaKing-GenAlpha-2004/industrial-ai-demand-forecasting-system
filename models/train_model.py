@@ -1,39 +1,32 @@
-from sklearn.model_selection import train_test_split
-
-from sklearn.preprocessing import StandardScaler
-
-from pandas.api.types import is_numeric_dtype
-
-import joblib
-import json
-import os
-
-from models.model_selector import (
-    select_model
+from sklearn.model_selection import (
+    train_test_split
 )
 
-from models.evaluate_model import (
-    evaluate_model
+from sklearn.metrics import (
+
+    mean_absolute_error,
+    r2_score,
+
+    accuracy_score
 )
 
+from model_selector import (
+    select_best_model
+)
 
-def train_model(df, target_column):
+# ==========================================
+# TRAIN INDUSTRIAL AI MODEL
+# ==========================================
 
-    print("\nAI MODEL TRAINING PIPELINE\n")
+def train_model(
 
-    # =========================
-    # VALIDATE TARGET
-    # =========================
+    df,
+    target_column
+):
 
-    if target_column not in df.columns:
-
-        raise ValueError(
-            "Invalid target column!"
-        )
-
-    # =========================
-    # FEATURE / TARGET SPLIT
-    # =========================
+    # ======================================
+    # FEATURES + TARGET
+    # ======================================
 
     X = df.drop(
         columns=[target_column]
@@ -41,21 +34,11 @@ def train_model(df, target_column):
 
     y = df[target_column]
 
-    # Preserve original target
-    original_y = y.copy()
+    # ======================================
+    # DETECT PROBLEM TYPE
+    # ======================================
 
-    # =========================
-    # PROBLEM TYPE DETECTION
-    # =========================
-
-    if original_y.dtype == "object":
-
-        problem_type = "classification"
-
-    elif (
-        is_numeric_dtype(original_y)
-        and original_y.nunique() <= 15
-    ):
+    if y.dtype == "object":
 
         problem_type = "classification"
 
@@ -63,145 +46,94 @@ def train_model(df, target_column):
 
         problem_type = "regression"
 
-    print(
-        f"\nDetected Problem Type: "
-        f"{problem_type}"
-    )
-
-    # =========================
-    # SCALE FEATURES ONLY
-    # =========================
-
-    scaler = StandardScaler()
-
-    numeric_columns = X.select_dtypes(
-        include=['int64', 'float64']
-    ).columns
-
-    X[numeric_columns] = scaler.fit_transform(
-        X[numeric_columns]
-    )
-
-    # =========================
+    # ======================================
     # TRAIN TEST SPLIT
-    # =========================
+    # ======================================
 
     X_train, X_test, y_train, y_test = (
         train_test_split(
+
             X,
             y,
+
             test_size=0.2,
+
             random_state=42
         )
     )
 
-    # =========================
-    # MODEL SELECTION
-    # =========================
+    # ======================================
+    # AUTO MODEL SELECTION
+    # ======================================
 
-    model = select_model(
+    model = select_best_model(
+
+        X_train,
+        X_test,
+
+        y_train,
+        y_test,
+
         problem_type
     )
 
-    # =========================
-    # MODEL TRAINING
-    # =========================
-
-    print("\nTraining Model...\n")
-
-    model.fit(
-        X_train,
-        y_train
-    )
-
-    print("Training Completed!")
-
-    # =========================
-    # PREDICTIONS
-    # =========================
+    # ======================================
+    # FINAL PREDICTIONS
+    # ======================================
 
     predictions = model.predict(
         X_test
     )
 
-    # =========================
-    # EVALUATION
-    # =========================
+    # ======================================
+    # METRICS
+    # ======================================
 
-    metrics = evaluate_model(
-        y_test,
-        predictions,
-        problem_type
-    )
+    if problem_type == "regression":
 
-    # =========================
-    # SAVE MODEL
-    # =========================
+        mae = mean_absolute_error(
 
-    os.makedirs(
-        "saved_models",
-        exist_ok=True
-    )
+            y_test,
 
-    model_path = (
-        "saved_models/trained_model.pkl"
-    )
-
-    scaler_path = (
-        "saved_models/scaler.pkl"
-    )
-
-    metadata_path = (
-        "saved_models/model_metadata.json"
-    )
-
-    # Save model
-    joblib.dump(
-        model,
-        model_path
-    )
-
-    # Save scaler
-    joblib.dump(
-        scaler,
-        scaler_path
-    )
-
-    # Save metadata
-    metadata = {
-
-        "target_column":
-            target_column,
-
-        "problem_type":
-            problem_type,
-
-        "metrics":
-            metrics
-    }
-
-    with open(
-        metadata_path,
-        "w"
-    ) as file:
-
-        json.dump(
-            metadata,
-            file,
-            indent=4
+            predictions
         )
 
-    print(
-        f"\nModel saved to:\n{model_path}"
-    )
+        r2 = r2_score(
 
-    print(
-        f"\nScaler saved to:\n{scaler_path}"
-    )
+            y_test,
 
-    print(
-        f"\nMetadata saved to:\n"
-        f"{metadata_path}"
-    )
+            predictions
+        )
 
-    return model,y_test,predictions,problem_type
+        print(
+            f"\nForecast Error (MAE): {mae:.2f}"
+        )
+
+        print(
+            f"R2 Score: {r2:.4f}"
+        )
+
+    else:
+
+        accuracy = accuracy_score(
+
+            y_test,
+
+            predictions
+        )
+
+        print(
+            f"\nClassification Accuracy: "
+            f"{accuracy:.4f}"
+        )
+
+    return (
+
+        model,
+
+        y_test,
+
+        predictions,
+
+        problem_type
+    )

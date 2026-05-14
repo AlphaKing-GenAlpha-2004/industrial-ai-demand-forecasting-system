@@ -10,17 +10,24 @@ from sklearn.ensemble import (
     ExtraTreesClassifier
 )
 
-from xgboost import (
+from sklearn.metrics import (
 
-    XGBRegressor,
-    XGBClassifier
+    mean_absolute_error,
+    accuracy_score
 )
 
 # ==========================================
-# MODEL SELECTOR
+# INDUSTRIAL MODEL SELECTOR
 # ==========================================
 
-def select_model(problem_type):
+def select_best_model(
+
+    X_train,
+    X_test,
+    y_train,
+    y_test,
+    problem_type
+):
 
     # ======================================
     # REGRESSION MODELS
@@ -28,20 +35,99 @@ def select_model(problem_type):
 
     if problem_type == "regression":
 
-        model = XGBRegressor(
+        models = {
 
-            n_estimators=300,
+            "Random Forest":
 
-            learning_rate=0.05,
+                RandomForestRegressor(
 
-            max_depth=8,
+                    n_estimators=300,
 
-            subsample=0.8,
+                    max_depth=20,
 
-            colsample_bytree=0.8,
+                    random_state=42,
 
-            random_state=42
+                    n_jobs=-1
+                ),
+
+            "Gradient Boosting":
+
+                GradientBoostingRegressor(
+
+                    n_estimators=300,
+
+                    learning_rate=0.05,
+
+                    max_depth=6,
+
+                    random_state=42
+                ),
+
+            "Extra Trees":
+
+                ExtraTreesRegressor(
+
+                    n_estimators=300,
+
+                    max_depth=20,
+
+                    random_state=42,
+
+                    n_jobs=-1
+                )
+        }
+
+        best_model = None
+        best_error = float("inf")
+        best_name = None
+
+        # ==================================
+        # TRAIN ALL MODELS
+        # ==================================
+
+        for name, model in models.items():
+
+            model.fit(
+                X_train,
+                y_train
+            )
+
+            predictions = model.predict(
+                X_test
+            )
+
+            mae = mean_absolute_error(
+
+                y_test,
+
+                predictions
+            )
+
+            print(
+                f"{name} MAE: {mae:.2f}"
+            )
+
+            # ------------------------------
+            # BEST MODEL SELECTION
+            # ------------------------------
+
+            if mae < best_error:
+
+                best_error = mae
+
+                best_model = model
+
+                best_name = name
+
+        print(
+            f"\nBEST MODEL: {best_name}"
         )
+
+        print(
+            f"LOWEST FORECAST ERROR: {best_error:.2f}"
+        )
+
+        return best_model
 
     # ======================================
     # CLASSIFICATION MODELS
@@ -49,21 +135,94 @@ def select_model(problem_type):
 
     else:
 
-        model = XGBClassifier(
+        models = {
 
-            n_estimators=300,
+            "Random Forest":
 
-            learning_rate=0.05,
+                RandomForestClassifier(
 
-            max_depth=6,
+                    n_estimators=300,
 
-            subsample=0.8,
+                    max_depth=20,
 
-            colsample_bytree=0.8,
+                    random_state=42,
 
-            eval_metric='mlogloss',
+                    n_jobs=-1
+                ),
 
-            random_state=42
+            "Gradient Boosting":
+
+                GradientBoostingClassifier(
+
+                    n_estimators=300,
+
+                    learning_rate=0.05,
+
+                    random_state=42
+                ),
+
+            "Extra Trees":
+
+                ExtraTreesClassifier(
+
+                    n_estimators=300,
+
+                    max_depth=20,
+
+                    random_state=42,
+
+                    n_jobs=-1
+                )
+        }
+
+        best_model = None
+        best_accuracy = 0
+        best_name = None
+
+        # ==================================
+        # TRAIN ALL MODELS
+        # ==================================
+
+        for name, model in models.items():
+
+            model.fit(
+                X_train,
+                y_train
+            )
+
+            predictions = model.predict(
+                X_test
+            )
+
+            accuracy = accuracy_score(
+
+                y_test,
+
+                predictions
+            )
+
+            print(
+                f"{name} Accuracy: {accuracy:.4f}"
+            )
+
+            # ------------------------------
+            # BEST MODEL SELECTION
+            # ------------------------------
+
+            if accuracy > best_accuracy:
+
+                best_accuracy = accuracy
+
+                best_model = model
+
+                best_name = name
+
+        print(
+            f"\nBEST MODEL: {best_name}"
         )
 
-    return model
+        print(
+            f"HIGHEST ACCURACY: {best_accuracy:.4f}"
+        )
+
+        return best_model
